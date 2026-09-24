@@ -7,6 +7,8 @@ from app.routers.tasks import router as task_router
 from app.routers.auth import router as auth_router
 from app.routers.submissions import router as submissions_router
 from app.routers.reviews import router as reviews_router
+from app.routers.points import router as points_router
+from app.routers.rewards import router as rewards_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,6 +26,8 @@ app.include_router(task_router)
 app.include_router(auth_router)
 app.include_router(submissions_router)
 app.include_router(reviews_router)
+app.include_router(points_router)
+app.include_router(rewards_router)
 
 @app.get("/")
 def root():

@@ -69,3 +69,52 @@ class SubmissionUpdate(BaseModel):
     )
 
     content:str = Field(min_length=1, max_length=2000)
+
+# --------------------------------------------------------------------------
+# 以下积分与兑换契约由 C 同学维护（docs/data-points-tasks.md §4）
+# --------------------------------------------------------------------------
+
+class PointBalanceRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id:int
+    balance:int
+
+class PointTransactionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id:int
+    user_id:int
+    change:int
+    source_type:str
+    source_id:int
+    created_at:str
+
+class RewardRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id:int
+    name:str
+    description:str
+    cost:int
+    stock:int
+    is_active:bool
+
+class RedeemRequest(BaseModel):
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        extra="forbid",
+    )
+
+    request_key:str = Field(min_length=1, max_length=100)
+
+class RedemptionRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id:int
+    user_id:int
+    reward_id:int
+    cost:int
+    status:str
+    request_key:str
+    created_at:str
