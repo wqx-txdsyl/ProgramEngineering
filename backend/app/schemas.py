@@ -69,3 +69,19 @@ class SubmissionUpdate(BaseModel):
     )
 
     content:str = Field(min_length=1, max_length=2000)
+
+class TaskRename(BaseModel):
+    model_config = ConfigDict(
+            str_strip_whitespace=True,
+            extra="forbid"
+        )
+
+    title:str = Field(min_length=1, max_length=100)
+
+class TaskDescriptionUpdate(BaseModel):
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        extra="forbid"
+    )
+
+    description:str = Field(min_length=1, max_length=2000)
