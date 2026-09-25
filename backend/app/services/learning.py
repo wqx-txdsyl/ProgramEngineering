@@ -4,6 +4,7 @@ from sqlmodel import Session
 
 from app.models import Submission
 from app.schemas import ReviewCreate
+from app.services.points import award_review_points
 
 def review_submission(
         session: Session,
@@ -39,6 +40,18 @@ def review_submission(
             status_code=409,
             detail="Submission has already been reviewed",
         )
+
+    if review_data.decision == "approved":
+        # 审核与发分必须在同一事务：积分写入失败时整体回滚（docs/data-points-tasks.md §2）
+        try:
+            award_review_points(
+                session,
+                submission_id=submission_id,
+                student_id=submission.student_id,
+            )
+        except HTTPException:
+            session.rollback()
+            raise
 
     session.commit()
     session.refresh(submission)

@@ -4,3 +4,5 @@ sqlmodel
 pwdlib[argon2]
 PyJWT
 python-dotenv
+pytest
+httpx
