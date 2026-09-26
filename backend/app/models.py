@@ -40,9 +40,6 @@ class Submission(SQLModel, table=True):
     status:str = Field(default="pending", max_length=20)
     feedback:str = Field(default="", max_length=2000)
 
-# --------------------------------------------------------------------------
-# 以下积分与兑换表由 C 同学维护（docs/data-points-tasks.md §3、§5）
-# --------------------------------------------------------------------------
 
 class PointAccount(SQLModel, table=True):
     __tablename__ = "point_accounts"

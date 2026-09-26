@@ -41,7 +41,6 @@ def redeem_one_reward(
         request_key=redeem_data.request_key,
     )
 
-    # 幂等重试返回原兑换单时使用 200，新建时 201
     if not created:
         response.status_code = 200
 

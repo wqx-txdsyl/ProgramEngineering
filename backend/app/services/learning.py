@@ -42,7 +42,6 @@ def review_submission(
         )
 
     if review_data.decision == "approved":
-        # 审核与发分必须在同一事务：积分写入失败时整体回滚（docs/data-points-tasks.md §2）
         try:
             award_review_points(
                 session,

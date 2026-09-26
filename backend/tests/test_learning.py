@@ -1,6 +1,3 @@
-"""学习流程回归：提交查重、审核状态转换、归属检查（docs/data-points-tasks.md §7 第 2、4 项）。"""
-
-
 def _submit(client, student, task_id: int, content: str = "我的成果") -> int:
     response = client.post(
         "/api/submissions",
@@ -104,7 +101,6 @@ def test_非法状态转换被拒绝(client, make_user, make_task):
     task_id = make_task(teacher["headers"])
     submission_id = _submit(client, student, task_id)
 
-    # 待审核状态不能直接重交
     early_resubmit = client.put(
         f"/api/submissions/{submission_id}",
         json={"content": "还没退回就想改"},

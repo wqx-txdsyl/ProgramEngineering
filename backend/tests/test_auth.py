@@ -1,6 +1,3 @@
-"""登录、身份与权限回归（docs/data-points-tasks.md §7 第 1 项）。"""
-
-
 def test_登录成功并能查询身份(client, make_user):
     user = make_user(role="student")
 

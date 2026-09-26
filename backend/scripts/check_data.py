@@ -1,9 +1,3 @@
-"""积分对账脚本（C 同学维护，docs/data-points-tasks.md §6、§8）。
-
-演示或交付前运行：python -m scripts.check_data
-检查余额与流水一致、兑换单与流水一致、库存与约束合法、奖励来源真实存在。
-发现任何问题以非零退出码结束，全部通过打印"账实相符"。
-"""
 import sys
 
 from sqlmodel import Session, select
@@ -32,7 +26,6 @@ def main() -> int:
             if s.status == "approved"
         }
 
-        # 1. 账户余额必须等于该用户流水之和；流水存在但无账户也视为问题
         changes_by_user: dict[int, int] = {}
         for row in transactions:
             changes_by_user[row.user_id] = changes_by_user.get(row.user_id, 0) + row.change
@@ -51,7 +44,6 @@ def main() -> int:
         for user_id in transaction_users - account_users:
             problems.append(f"[账户] 用户{user_id} 有流水但无积分账户")
 
-        # 2. 流水来源必须真实存在
         for row in transactions:
             if row.change == 0:
                 problems.append(f"[流水] 流水{row.id} 变动为 0，无意义")
@@ -60,7 +52,6 @@ def main() -> int:
                     f"[流水] 审核奖励流水{row.id} 指向不存在或未通过的成果{row.source_id}"
                 )
 
-        # 3. 兑换单一致性：有扣分流水；已取消的有退款流水；未取消的没有退款流水
         keys = {(t.user_id, t.source_type, t.source_id) for t in transactions}
         for red in redemptions:
             if (red.user_id, SOURCE_REDEEM, red.id) not in keys:
@@ -73,7 +64,6 @@ def main() -> int:
             if red.status not in (REDEMPTION_ACTIVE, REDEMPTION_CANCELLED):
                 problems.append(f"[兑换单] 兑换单{red.id} 状态非法：{red.status}")
 
-        # 4. 库存非负
         for reward in rewards:
             if reward.stock < 0:
                 problems.append(f"[库存] 奖励{reward.id} {reward.name} 库存为负：{reward.stock}")

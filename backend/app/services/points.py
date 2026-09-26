@@ -1,13 +1,3 @@
-"""积分与兑换业务（C 同学维护，docs/data-points-tasks.md §2–§4）。
-
-事务约定：
-- 本模块函数与调用方共用同一个 Session；除 redeem_reward / cancel_redemption
-  在全部写入成功后统一 commit 外，其余函数只写入不提交。
-- 审核奖励由 services/learning.py 的 review_submission 在同一事务内调用，
-  任何一步失败整体回滚，不会出现"审核成功但积分失败"。
-- 防重复依赖数据库唯一约束（point_transactions 的来源三元组、
-  redemptions 的 user_id + request_key），不依赖"先查有没有"。
-"""
 from datetime import datetime, timezone
 
 from fastapi import HTTPException
@@ -17,7 +7,6 @@ from sqlmodel import Session, select
 
 from app.models import PointAccount, PointTransaction, Redemption, Reward
 
-# 审核奖励分值：团队确认后在此统一调整（docs/data-points-tasks.md §2）
 REVIEW_APPROVED_POINTS = 10
 
 SOURCE_REVIEW_APPROVED = "review_approved"
@@ -58,7 +47,6 @@ def _apply_balance_change(
     delta: int,
     require_at_least: int | None = None,
 ) -> bool:
-    """带条件的余额更新；delta 为负时要求当前余额足够。返回是否更新成功。"""
     get_or_create_account(session, user_id)
 
     statement = update(PointAccount).where(PointAccount.user_id == user_id)
@@ -78,11 +66,6 @@ def award_review_points(
     submission_id: int,
     student_id: int,
 ) -> None:
-    """审核通过的奖励：同事务写入余额与流水，由调用方（review_submission）统一提交。
-
-    唯一约束 (user_id, source_type, source_id) 保证一条成果最多奖励一次；
-    冲突时抛 409，调用方回滚整个审核事务。
-    """
     _apply_balance_change(session, student_id, REVIEW_APPROVED_POINTS)
 
     session.add(PointTransaction(
@@ -122,12 +105,6 @@ def redeem_reward(
     reward_id: int,
     request_key: str,
 ) -> tuple[Redemption, bool]:
-    """兑换奖励。余额、库存、兑换单、流水在同一事务内更新。
-
-    幂等：同一 (user_id, request_key) 重试返回原兑换单且不再扣费；
-    同一键搭配不同奖励返回 409。失败路径统一回滚后抛错，不留任何写入。
-    返回 (兑换单, 是否新创建)。
-    """
     existing = session.exec(
         select(Redemption).where(
             Redemption.user_id == user_id,
@@ -213,7 +190,6 @@ def cancel_redemption(
     user_id: int,
     redemption_id: int,
 ) -> Redemption:
-    """取消未使用的兑换单：退积分、恢复库存。仅 active 可取消，退款只发生一次。"""
     redemption = session.get(Redemption, redemption_id)
 
     if redemption is None or redemption.user_id != user_id:
@@ -276,7 +252,7 @@ def list_rewards(
 ) -> list[Reward]:
     return list(session.exec(
         select(Reward)
-        .where(Reward.is_active == True)  # noqa: E712  只展示可兑换奖励
+        .where(Reward.is_active == True)
         .order_by(Reward.id)
         .offset(offset)
         .limit(limit)

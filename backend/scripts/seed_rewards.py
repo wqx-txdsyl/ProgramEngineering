@@ -1,14 +1,8 @@
-"""奖励演示数据初始化（C 同学维护，docs/data-points-tasks.md §3、§5）。
-
-可重复运行：按固定 id 插入，已存在的奖励跳过，不修改、不删除、不重置。
-用法：python -m scripts.seed_rewards
-"""
 from sqlmodel import Session
 
 from app.database import create_db_and_tables, engine
 from app.models import Reward
 
-# 全部标注"演示"；AI 额度等无真实供应方的条目在描述里明确说明
 DEMO_REWARDS = [
     {
         "id": 1,

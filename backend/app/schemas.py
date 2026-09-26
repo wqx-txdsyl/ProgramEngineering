@@ -86,9 +86,21 @@ class TaskDescriptionUpdate(BaseModel):
 
     description:str = Field(min_length=1, max_length=2000)
 
-# --------------------------------------------------------------------------
-# 以下积分与兑换契约由 C 同学维护（docs/data-points-tasks.md §4）
-# --------------------------------------------------------------------------
+class LearningProgressRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    submitted_count:int = Field(ge=0)
+    approved_count:int = Field(ge=0)
+
+class Register(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid"
+    )
+
+    username:str = Field(min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_]+$")
+    password:str = Field(min_length=8, max_length=128)
+
+
 
 class PointBalanceRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)

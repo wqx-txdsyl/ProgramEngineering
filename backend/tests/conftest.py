@@ -1,6 +1,5 @@
 import os
 
-# app.config 在导入时校验 JWT_SECRET_KEY，必须先于任何 app 导入设置好
 os.environ.setdefault("JWT_SECRET_KEY", "pytest-secret-key-00000000000000000000000000")
 
 import itertools
@@ -11,7 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from app import models  # noqa: F401  确保全部表模型注册
+from app import models
 from app.database import get_session
 from app.main import app
 from app.models import PointAccount, PointTransaction, User
@@ -38,7 +37,6 @@ def client(engine):
             yield session
 
     app.dependency_overrides[get_session] = override_session
-    # 不用 with：避免触发 lifespan 在真实 backend/data/app.db 上建表
     yield TestClient(app, raise_server_exceptions=False)
     app.dependency_overrides.clear()
 
@@ -92,7 +90,6 @@ def make_task(client) -> Callable[..., int]:
 
 @pytest.fixture
 def give_points(engine) -> Callable[..., None]:
-    """测试专用：直接给用户加积分。同时写账户与流水，保持 SUM(流水) == 余额。"""
     counter = itertools.count(1)
 
     def _give(user_id: int, amount: int) -> None:

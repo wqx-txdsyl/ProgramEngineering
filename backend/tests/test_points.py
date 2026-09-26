@@ -1,5 +1,3 @@
-"""积分与兑换回归（docs/data-points-tasks.md §7 积分相关清单 + §8 交付顺序）。"""
-
 import itertools
 from concurrent.futures import ThreadPoolExecutor
 
@@ -61,7 +59,6 @@ def _reward_stock(client, user, reward_id: int) -> int:
     return next(r for r in rewards if r["id"] == reward_id)["stock"]
 
 
-# ---------- 审核发分（第一优先级） ----------
 
 def test_审核通过恰好加一次分_重复审核不重复加分(client, make_user, make_task):
     teacher = make_user(role="teacher")
@@ -93,7 +90,7 @@ def test_积分按获益学生计入_不是按操作教师计入(client, make_us
 
     assert _balance(client, student) == REVIEW_APPROVED_POINTS
     teacher_points = client.get("/api/points/me", headers=teacher["headers"])
-    assert teacher_points.status_code == 403   # 教师无积分账户接口，更不会被误加积分
+    assert teacher_points.status_code == 403
 
 
 def test_退回与重交不加分_重交通过后也只加一次(client, make_user, make_task):
@@ -127,7 +124,6 @@ def test_已有approved记录不会自动补发(client, make_user, make_task, en
     task_id = make_task(teacher["headers"])
     submission_id = _submit(client, student, task_id)
 
-    # 模拟积分功能上线前的历史数据：直接置为 approved，从未发过分
     with Session(engine) as session:
         session.execute(
             update(Submission)
@@ -147,7 +143,6 @@ def test_积分写入失败时审核状态与余额都回滚(client, make_user, 
     task_id = make_task(teacher["headers"])
     submission_id = _submit(client, student, task_id)
 
-    # 预埋同来源流水，模拟发分时唯一约束冲突
     with Session(engine) as session:
         session.add(PointTransaction(
             user_id=student["id"],
@@ -194,10 +189,9 @@ def test_流水分页(client, make_user, give_points):
         headers=student["headers"],
     ).json()
     assert len(page) == 2
-    assert {row["change"] for row in page} == {7, 6}   # 默认按 id 倒序，新的在前
+    assert {row["change"] for row in page} == {7, 6}
 
 
-# ---------- 兑换（第二优先级） ----------
 
 def test_兑换成功后余额库存流水兑换单一致(client, make_user, engine, give_points):
     student = make_user(role="student")
@@ -212,7 +206,7 @@ def test_兑换成功后余额库存流水兑换单一致(client, make_user, eng
     assert response.status_code == 201, response.text
     redemption = response.json()
     assert redemption["status"] == "active"
-    assert redemption["cost"] == 10                 # 兑换时价格快照
+    assert redemption["cost"] == 10
 
     assert _balance(client, student) == 40
     assert _reward_stock(client, student, reward_id) == 2
@@ -248,8 +242,8 @@ def test_重复请求幂等_同键换奖励被拒(client, make_user, engine, giv
     )
     assert replay.status_code == 200
     assert replay.json()["id"] == first.json()["id"]
-    assert _balance(client, student) == 40                     # 不重复扣费
-    assert _reward_stock(client, student, reward_id) == 2      # 不重复扣库存
+    assert _balance(client, student) == 40
+    assert _reward_stock(client, student, reward_id) == 2
 
     conflict = client.post(
         f"/api/rewards/{other_reward_id}/redeem",
@@ -287,7 +281,6 @@ def test_余额不足_库存为零_下架都不扣分(client, make_user, engine,
 
     assert _balance(client, poor) == 5
     assert _balance(client, rich) == 100
-    # 失败的兑换没有留下任何 redeem/refund 流水
     assert [t for t in _transactions(client, poor) if t["source_type"] in ("redeem", "refund")] == []
     assert [t for t in _transactions(client, rich) if t["source_type"] in ("redeem", "refund")] == []
 
@@ -317,22 +310,21 @@ def test_取消只退一次_他人不能取消_库存恢复一次(client, make_u
         headers=student["headers"],
     )
     assert again.status_code == 409
-    assert _balance(client, student) == 50                 # 只退一次
+    assert _balance(client, student) == 50
 
     hijack = client.post(
         f"/api/rewards/redemptions/{redemption_id}/cancel",
         headers=stranger["headers"],
     )
-    assert hijack.status_code == 404                       # 归属检查
+    assert hijack.status_code == 404
 
-    assert _reward_stock(client, student, reward_id) == 2  # 库存恢复且只恢复一次
+    assert _reward_stock(client, student, reward_id) == 2
     refund_rows = [
         t for t in _transactions(client, student) if t["source_type"] == "refund"
     ]
     assert len(refund_rows) == 1
 
 
-# ---------- 并发 / 重启 / 迁移（§6、§7 末三项） ----------
 
 def test_并发兑换不透支不超卖(tmp_path):
     db_path = tmp_path / "concurrency.db"
@@ -362,9 +354,9 @@ def test_并发兑换不透支不超卖(tmp_path):
     with ThreadPoolExecutor(max_workers=2) as pool:
         outcomes = list(pool.map(attempt, [1, 2]))
 
-    assert outcomes.count("ok") == 1                      # 最多一人成功
+    assert outcomes.count("ok") == 1
     with Session(engine) as session:
-        assert session.get(Reward, 1).stock == 0          # 库存不为负
+        assert session.get(Reward, 1).stock == 0
         deducts = session.exec(
             select(PointTransaction).where(PointTransaction.source_type == "redeem")
         ).all()
@@ -377,7 +369,7 @@ def test_并发兑换不透支不超卖(tmp_path):
             transaction.change
             for transaction in session.exec(select(PointTransaction)).all()
         )
-        assert balances[1] + balances[2] == 200 + total_change   # 余额与流水一致
+        assert balances[1] + balances[2] == 200 + total_change
 
 
 def test_服务重启后状态仍在(tmp_path):
@@ -390,7 +382,6 @@ def test_服务重启后状态仍在(tmp_path):
         session.add(Reward(id=1, name="徽章", cost=10, stock=5))
         session.commit()
 
-    # 模拟重启：全新连接
     engine_after = create_engine(url, connect_args={"check_same_thread": False})
     with Session(engine_after) as session:
         from app.services.points import _apply_balance_change
@@ -404,7 +395,7 @@ def test_服务重启后状态仍在(tmp_path):
         account = session.exec(
             select(PointAccount).where(PointAccount.user_id == 1)
         ).one()
-        assert account.balance == 20                      # 30 - 10
+        assert account.balance == 20
         redemption = session.exec(select(Redemption)).one()
         assert redemption.status == "active"
         assert session.get(Reward, 1).stock == 4
@@ -417,7 +408,6 @@ def test_升级新增积分表不破坏原有数据(tmp_path):
         connect_args={"check_same_thread": False},
     )
 
-    # 先模拟 B 的旧库：只有 users / tasks / submissions 三张表
     from sqlmodel import SQLModel as _SM
 
     legacy_tables = [
@@ -433,14 +423,13 @@ def test_升级新增积分表不破坏原有数据(tmp_path):
         session.add(Submission(id=1, task_id=1, student_id=1, content="旧成果", status="approved"))
         session.commit()
 
-    # 升级：create_all 补建积分相关新表
     SQLModel.metadata.create_all(engine)
 
     with Session(engine) as session:
-        assert session.get(Submission, 1).content == "旧成果"   # 原数据完好
+        assert session.get(Submission, 1).content == "旧成果"
         assert session.get(User, 1).username == "old_user"
         from app.models import Task
 
         session.add(Reward(id=1, name="新奖励", cost=5, stock=1))
         session.commit()
-        assert session.get(Reward, 1).stock == 1                # 新表可用
+        assert session.get(Reward, 1).stock == 1

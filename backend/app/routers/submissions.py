@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
+from sqlalchemy import func
 
 from app.database import get_session
 from app.dependencies import require_student
@@ -9,6 +10,7 @@ from app.schemas import (
     SubmissionCreate,
     SubmissionRead,
     SubmissionUpdate,
+    LearningProgressRead
 )
 
 from app.services.learning import resubmit_submission
@@ -104,3 +106,53 @@ def update_my_submission(
     )
 
     return submission
+
+@router.get("/me", response_model=LearningProgressRead)
+def get_my_progress(
+    session:Session = Depends(get_session),
+    current_user:User = Depends(require_student)
+):
+    statement = (
+        select(func.count())
+        .select_from(Submission)
+        .where(Submission.student_id == current_user.id)
+    )
+    submission = session.exec(statement).one()
+
+    statement = (
+        select(func.count())
+        .select_from(Submission)
+        .where(
+            Submission.student_id == current_user.id,
+            Submission.status == "approved"
+        )
+    )
+    progress = session.exec(statement).one()
+
+    return {
+        "submitted_count": submission,
+        "approved_count": progress
+    }
+
+@router.get("/mine/pending", response_model=list[SubmissionRead])
+def get_my_pending(
+    offset:int = Query(default=0, ge=0),
+    limit:int = Query(default=20, ge=1, le=100),
+    session:Session = Depends(get_session),
+    current_user:User = Depends(require_student)
+
+):
+    statement = (
+        select(Submission)
+        .where(
+            Submission.student_id == current_user.id,
+            Submission.status == "pending"
+        )
+        .order_by(Submission.id.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+
+    pending = session.exec(statement).all()
+
+    return pending
