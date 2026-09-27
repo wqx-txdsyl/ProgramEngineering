@@ -1,16 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 from sqlalchemy import func
-from pydantic import Field
 
 from app.database import get_session
 from app.dependencies import require_student
 from app.models import User, Score
 from app.schemas import (
     ScorePost,
-    ScoreRead,
-    ScoreReadMine
+    ScoreRead
 )
 from app.dependencies import get_current_user, require_teacher, require_student
 
@@ -25,36 +23,77 @@ def post_your_score(
     current_user:User = Depends(require_student),
     session:Session = Depends(get_session)
 ):
+    statement = (
+        select(Score)
+        .where(
+            current_user.id == Score.user_id
+        )
+    )
+    
     new_score = Score(
         user_id=current_user.id,
-        score=score.score
+        score=score.score,
+        score_detail=score.score_detail
     )
     session.add(new_score)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+
+        existing_score = session.exec(statement).first()
+
+        if existing_score is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="There has been a previous score"
+            )
+        raise
+
     session.refresh(new_score)
 
     return new_score
 
-@router.get("/me", response_model=list[ScoreReadMine])
-def get_my_score(
+@router.patch("", response_model=ScorePost, status_code=200)
+def update_your_score(
+    scoreupdate:ScorePost,
     current_user:User = Depends(require_student),
     session:Session = Depends(get_session)
 ):
     statement = (
-        select(Score)
-        .where(current_user.id==Score.user_id)
-        .order_by(Score.id.desc())
-    )
+            select(Score)
+            .where(
+                current_user.id == Score.user_id
+            )
+        )
+    score = session.exec(statement).first()
 
-    score = session.exec(statement).all()
-    score_one = session.exec(statement).first()
-
-    if score_one is None:
+    if score is None:
         raise HTTPException(
             status_code=404,
             detail="Score Not Found"
         )
+    
+    score.score = scoreupdate.score
+    score.score_detail = scoreupdate.score_detail
 
+    session.commit()
+    session.refresh(score)
+
+    return score
+
+@router.get("/record", response_model=list[ScorePost])
+def get_my_score(
+    current_user:User = Depends(require_teacher),
+    session:Session = Depends(get_session)
+):
+    statement = (
+        select(Score)
+        .order_by(Score.id)
+    )
+
+    score = session.exec(statement).all()
+    
     return score
 
 @router.get("", response_model=ScoreRead)
@@ -62,13 +101,6 @@ def get_score(
     current_user:User = Depends(require_teacher),
     session:Session = Depends(get_session)
 ):
-    statement_zero =(
-        select(func.count())
-        .select_from(Score)
-        .where(Score.score == 0)
-    )
-    score_zero = session.exec(statement_zero).one()
-
     statement_one = (
         select(func.count())
         .select_from(Score)
@@ -127,6 +159,5 @@ def get_score(
         "score_four": score_four,
         "score_three": score_three,
         "score_two": score_two,
-        "score_one": score_one,
-        "score_zero": score_zero
+        "score_one": score_one
     }

@@ -9,6 +9,7 @@ class TaskCreate(BaseModel):
 
     title:str = Field(min_length=1, max_length=100)
     description:str = Field(min_length=0, max_length=2000, default="")
+    tag:str = Field(default="", max_length=50)
 
 class TaskRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -16,6 +17,7 @@ class TaskRead(BaseModel):
     id:int
     title:str
     description:str
+    tag:str
 
 class LoginRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -86,6 +88,13 @@ class TaskDescriptionUpdate(BaseModel):
 
     description:str = Field(min_length=1, max_length=2000)
 
+class TaskTagUpdate(BaseModel):
+    model_config = ConfigDict(
+        str_strip_whitespace=True,
+        extra="forbid"
+    )
+
+    tag: str = Field(default="", max_length=50)
 class LearningProgressRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -105,7 +114,8 @@ class ScorePost(BaseModel):
         extra="forbid"
     )
 
-    score:int = Field(ge=0, le=5)
+    score:int = Field(ge=1, le=5)
+    score_detail:str | None = Field(default=None, min_length=0, max_length=2000)
 
 class ScoreRead(BaseModel):
     model_config = ConfigDict(
@@ -117,14 +127,6 @@ class ScoreRead(BaseModel):
     score_three:int
     score_two:int
     score_one:int
-    score_zero:int
-
-class ScoreReadMine(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    
-    id:int
-    user_id:int
-    score:int
 
 class PointBalanceRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)

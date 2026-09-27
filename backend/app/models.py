@@ -8,6 +8,7 @@ class Task(SQLModel, table=True):
 
     id:int | None = Field(default=None, primary_key=True)
     title:str = Field(max_length=100)
+    tag:str = Field(default="", max_length=50)
     description:str = Field(max_length=2000, default="")
 
 class User(SQLModel, table=True):
@@ -115,5 +116,6 @@ class Score(SQLModel, table=True):
     __tablename__ = "score"
 
     id:int | None = Field(default=None, primary_key=True)
-    user_id:int = Field(foreign_key="users.id", index=True)
-    score:int = Field(ge=0, le=5)
+    user_id:int = Field(foreign_key="users.id", index=True, unique=True)
+    score:int = Field(ge=1, le=5)
+    score_detail:str| None = Field(default=None, min_length=0, max_length=2000)

@@ -4,7 +4,7 @@ from sqlmodel import Session, select
 from app.database import get_session
 from app.dependencies import get_current_user, require_teacher
 from app.models import Task, User
-from app.schemas import TaskCreate, TaskRead, TaskDescriptionUpdate, TaskRename
+from app.schemas import TaskCreate, TaskRead, TaskDescriptionUpdate, TaskRename, TaskTagUpdate
 
 router = APIRouter(
     prefix="/api/tasks",
@@ -19,6 +19,7 @@ def create_task(
 ):
     task = Task(
         title=task_data.title,
+        tag=task_data.tag,
         description=task_data.description
     )
 
@@ -98,6 +99,27 @@ def modify_description(
         )
 
     task.description = description_data.description
+    session.commit()
+    session.refresh(task)
+
+    return task
+
+@router.patch("/{task_id}/tag", response_model=TaskRead)
+def modify_tag(
+    task_id:int,
+    tag_data:TaskTagUpdate,
+    session:Session = Depends(get_session),
+    current_user:User = Depends(require_teacher)
+):
+    task = session.get(Task, task_id)
+
+    if task is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Task Not Found"
+        )
+
+    task.tag = tag_data.tag
     session.commit()
     session.refresh(task)
 
