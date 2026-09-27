@@ -110,3 +110,10 @@ class Redemption(SQLModel, table=True):
         max_length=32,
         default_factory=lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
     )
+
+class Score(SQLModel, table=True):
+    __tablename__ = "score"
+
+    id:int | None = Field(default=None, primary_key=True)
+    user_id:int = Field(foreign_key="users.id", index=True)
+    score:int = Field(ge=0, le=5)

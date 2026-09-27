@@ -9,6 +9,7 @@ from app.routers.submissions import router as submissions_router
 from app.routers.reviews import router as reviews_router
 from app.routers.points import router as points_router
 from app.routers.rewards import router as rewards_router
+from app.routers.score import router as scores_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -28,6 +29,7 @@ app.include_router(submissions_router)
 app.include_router(reviews_router)
 app.include_router(points_router)
 app.include_router(rewards_router)
+app.include_router(scores_router)
 
 @app.get("/")
 def root():

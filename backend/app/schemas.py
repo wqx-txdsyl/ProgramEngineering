@@ -100,7 +100,31 @@ class Register(BaseModel):
     username:str = Field(min_length=3, max_length=50, pattern=r"^[a-zA-Z0-9_]+$")
     password:str = Field(min_length=8, max_length=128)
 
+class ScorePost(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid"
+    )
 
+    score:int = Field(ge=0, le=5)
+
+class ScoreRead(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid"
+    )
+    score_average:float
+    score_five:int
+    score_four:int
+    score_three:int
+    score_two:int
+    score_one:int
+    score_zero:int
+
+class ScoreReadMine(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    
+    id:int
+    user_id:int
+    score:int
 
 class PointBalanceRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
